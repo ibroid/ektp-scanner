@@ -4,73 +4,19 @@ import { fileURLToPath } from 'url';
 import * as dotenv from 'dotenv'
 import fetch, { fileFromSync, FormData } from "node-fetch"
 import csvToJson from "convert-csv-to-json";
+import { io } from "socket.io-client";
+import chokidar from "chokidar";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-import chokidar from "chokidar";
+const socket = io('https://socket.pa-jakartautara.go.id/visitor', {
+	transports: ['websocket']
+	, secure: true, reconnect: true, rejectUnauthorized: false
+});
 
 dotenv.config()
 
 const tempPath = path.join(__dirname, process.env.TEMPORARY_DIR);
 const uploadPath = path.join(__dirname, process.env.UPLOAD_DIR);
-
-function readFiles(dirname) {
-	fs.readdir(dirname, async function (err, files) {
-		if (err) {
-			console.log(err)
-			return false;
-		}
-
-		if (files.length > 0) {
-
-			const body = new FormData();
-			files.forEach((file) => {
-
-				if (file.includes('.csv')) {
-
-					const result = csvToJson.fieldDelimiter('\t').utf16leEncoding().getJsonFromCsv(tempPath + file)
-
-					body.append('nik', result[0].NIK);
-					body.append('nama', result[0].Nama);
-					body.append('jenis_kelamin', result[0]['Jenis Kelamin']);
-					body.append('alamat', `${result[0].Alamat} RT/RW ${result[0]['RT/RW']}`);
-					body.append('kelurahan', result[0]['Kel/Desa']);
-					body.append('kecamatan', result[0].Kecamatan);
-					body.append('kota', result[0].Kota);
-					body.append('provinsi', result[0].Provinsi);
-					body.append('Pekerjaan', result[0].Pekerjaan);
-
-				}
-
-				if (file.includes('.jpg')) {
-					if (file.includes('_Photo')) {
-						body.set('foto', fileFromSync(tempPath + file))
-					} else {
-
-						body.set('ktp', fileFromSync(tempPath + file))
-					}
-				}
-
-			});
-
-			const requestUpload = await
-
-				console.log(requestUpload)
-
-			files.forEach(file => {
-				fs.renameSync(tempPath + file, uploadPath + file, (err) => {
-					if (err) {
-						console.log(err)
-					}
-					console.log('moved')
-				})
-			})
-
-		}
-	});
-}
-
-// readFiles(tempPath)
 
 function uploadFile(file) {
 	const body = new FormData();
@@ -105,12 +51,12 @@ function uploadFile(file) {
 	}
 
 
-	fetch('http://visitor.pa-jakartautara.go.id/debug', {
+	fetch('http://visitor.pa-jakartautara.go.id/api', {
 		method: "POST",
 		body: body
 	}).then(res => res.json()).then(res => {
 		console.log(res)
-		fs.renameSync(file, file.replace('temp', 'uploads'), (err) => {
+		fs.renameSync(file, file.replace('tmp', 'uploads'), (err) => {
 			if (err) {
 				console.log(err)
 			}
@@ -119,14 +65,24 @@ function uploadFile(file) {
 	})
 }
 
+socket.on("connect", () => {
+	console.log('Watcher is connected to socket')
+})
+
+socket.on("connect_error", (err) => {
+	console.log(err)
+})
+
+
 const watcher = chokidar.watch(tempPath, {
 	ignored: /(^|[\/\\])\../,
-	persistent: true
+	persistent: true,
+	ignorePermissionErrors: false,
 })
 
 watcher.on('add', (path, stats) => {
-	// console.log(path.split('-')[7])
-	// console.log(stats)
+	console.log('Hasil Scan Berhasil Tersimpan. File : ' + path)
 	uploadFile(path)
-})
+}).on('error', error => log(`Watcher error: ${error}`))
 
+console.log('Watcher Started')  
