@@ -34,7 +34,7 @@ function uploadFile(file) {
 		body.append('kecamatan', result[0].Kecamatan);
 		body.append('kota', result[0].Kota);
 		body.append('provinsi', result[0].Provinsi);
-		body.append('Pekerjaan', result[0].Pekerjaan);
+		body.append('pekerjaan', result[0].Pekerjaan);
 
 	}
 
@@ -55,13 +55,9 @@ function uploadFile(file) {
 		method: "POST",
 		body: body
 	}).then(res => res.json()).then(res => {
-		console.log(res)
-		fs.renameSync(file, file.replace('tmp', 'uploads'), (err) => {
-			if (err) {
-				console.log(err)
-			}
-			console.log('moved')
-		})
+		console.log(res.message)
+		socket.emit('client_uploaded', (!res.filename) ? res.data : res.filename)
+		fs.renameSync(file, file.replace('temp', 'uploads'))
 	})
 }
 
@@ -80,9 +76,12 @@ const watcher = chokidar.watch(tempPath, {
 	ignorePermissionErrors: false,
 })
 
-watcher.on('add', (path, stats) => {
-	console.log('Hasil Scan Berhasil Tersimpan. File : ' + path)
-	uploadFile(path)
-}).on('error', error => log(`Watcher error: ${error}`))
+watcher
+	.on('add', (path, stats) => {
+		console.log('Hasil Scan Berhasil Tersimpan. File : ' + path)
+		uploadFile(path)
+	})
+	.on('error', error => log(`Watcher error: ${error}`))
+
 
 console.log('Watcher Started')  
