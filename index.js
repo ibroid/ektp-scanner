@@ -23,7 +23,7 @@ function uploadFile(file) {
 	if (file.includes('.csv')) {
 
 		const result = csvToJson.fieldDelimiter('\t').utf16leEncoding().getJsonFromCsv(file)
-		const fileId = file.split('-')[7]
+		const fileId = file.split('-')[6]
 
 		body.append('file_id', fileId.split('.')[0]);
 		body.append('nik', result[0].NIK);
@@ -40,11 +40,11 @@ function uploadFile(file) {
 
 	if (file.includes('.jpg')) {
 		if (file.includes('_Photo')) {
-			const fileId = file.split('-')[7]
+			const fileId = file.split('-')[6]
 			body.append('file_id', fileId.split('_')[0])
 			body.set('foto', fileFromSync(file))
 		} else {
-			const fileId = file.split('-')[7]
+			const fileId = file.split('-')[6]
 			body.append('file_id', fileId.split('.')[0])
 			body.set('ktp', fileFromSync(file))
 		}
