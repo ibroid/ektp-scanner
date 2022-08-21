@@ -18,40 +18,10 @@ dotenv.config()
 const tempPath = path.join(__dirname, process.env.TEMPORARY_DIR);
 const uploadPath = path.join(__dirname, process.env.UPLOAD_DIR);
 
-function uploadFile(file) {
-	const body = new FormData();
-	if (file.includes('.csv')) {
+let uploadQueue = [];
 
-		const result = csvToJson.fieldDelimiter('\t').utf16leEncoding().getJsonFromCsv(file)
-		const fileId = file.split('-')[6]
-
-		body.append('file_id', fileId.split('.')[0]);
-		body.append('nik', result[0].NIK);
-		body.append('nama', result[0].Nama);
-		body.append('jenis_kelamin', result[0]['Jenis Kelamin']);
-		body.append('alamat', `${result[0].Alamat} RT/RW ${result[0]['RT/RW']}`);
-		body.append('kelurahan', result[0]['Kel/Desa']);
-		body.append('kecamatan', result[0].Kecamatan);
-		body.append('kota', result[0].Kota);
-		body.append('provinsi', result[0].Provinsi);
-		body.append('pekerjaan', result[0].Pekerjaan);
-
-	}
-
-	if (file.includes('.jpg')) {
-		if (file.includes('_Photo')) {
-			const fileId = file.split('-')[6]
-			body.append('file_id', fileId.split('_')[0])
-			body.set('foto', fileFromSync(file))
-		} else {
-			const fileId = file.split('-')[6]
-			body.append('file_id', fileId.split('.')[0])
-			body.set('ktp', fileFromSync(file))
-		}
-	}
-
-
-	fetch('http://visitor.pa-jakartautara.go.id/api', {
+function uploadFile(body, file) {
+	fetch(process.env.URL_API, {
 		method: "POST",
 		body: body
 	}).then(res => res.json()).then(res => {
@@ -78,10 +48,57 @@ const watcher = chokidar.watch(tempPath, {
 
 watcher
 	.on('add', (path, stats) => {
-		console.log('Hasil Scan Berhasil Tersimpan. File : ' + path)
-		uploadFile(path)
+		uploadQueue.push(path)
+		cekForUploads()
 	})
 	.on('error', error => log(`Watcher error: ${error}`))
 
 
-console.log('Watcher Started')  
+console.log('Watcher Started')
+
+const cekForUploads = () => {
+	if (uploadQueue.length == 3) {
+		uploadQueue.forEach((item, index) => {
+			if (item.includes('.csv')) {
+				uploadQueue.splice(index, 1)
+				uploadQueue.unshift(item)
+			}
+		})
+		if (uploadQueue[0].includes('.csv')) {
+			const file = uploadQueue[0];
+			const body = new FormData();
+			const result = csvToJson.fieldDelimiter('\t').utf16leEncoding().getJsonFromCsv(file)
+			const fileId = file.split('-')[7]
+			console.log(result)
+
+			body.append('file_id', fileId.split('.')[0]);
+			body.append('nik', result[0].NIK);
+			body.append('nama', result[0].Nama);
+			body.append('jenis_kelamin', result[0]['JenisKelamin']);
+			body.append('alamat', `${result[0].Alamat} RT/RW ${result[0]['RT/RW']}`);
+			body.append('kelurahan', result[0]['Kel/Desa']);
+			body.append('kecamatan', result[0].Kecamatan);
+			body.append('kota', result[0].Kota);
+			body.append('provinsi', result[0].Provinsi);
+			body.append('pekerjaan', result[0].Pekerjaan);
+
+			uploadQueue.forEach((item, index) => {
+				if (item.includes('.jpg')) {
+					if (item.includes('_Photo')) {
+						const fileId = item.split('-')[7]
+						body.append('file_id', fileId.split('_')[0])
+						body.set('foto', fileFromSync(item))
+					} else {
+						const fileId = item.split('-')[7]
+						body.append('file_id', fileId.split('.')[0])
+						body.set('ktp', fileFromSync(item))
+					}
+				}
+				uploadFile(body, item)
+			})
+
+		}
+		uploadQueue = [];
+	}
+
+}
