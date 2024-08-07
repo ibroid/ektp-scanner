@@ -1,4 +1,10 @@
 node_modules
-uploads
-temp
-tmp
+uploads/*
+temp/*
+tmp/*
+
+!temp/readme.txt
+!tmp/readme.txt
+!uploads/readme.txt
+
+.env
